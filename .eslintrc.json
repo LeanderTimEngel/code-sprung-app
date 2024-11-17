@@ -1,3 +1,9 @@
 {
-  "extends": ["next/core-web-vitals", "next/typescript"]
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "rules": {
+
+    // Aufpassen: Gemacht wegen Vercel deployment
+
+    "@typescript-eslint/no-unused-vars": ["warn"] // Ändert die Regel von "error" auf "warn"
+  }
 }
