@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import { auth } from "@/lib/firebase";
-import { updateUserProgress } from "@/lib/userProgress";
 import { getChallengeById, Challenge } from "@/lib/challenges";
+import { updateUserProgress } from "@/lib/userProgress";
 import { updateLeaderboard } from "@/lib/leaderboard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { onAuthStateChanged } from "firebase/auth";
@@ -18,16 +18,14 @@ const JUDGE0_API_KEY = process.env.NEXT_PUBLIC_JUDGE0_API_KEY;
 
 export default function ChallengePage({ params }: { params: { id: string } }) {
   const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [code, setCode] = useState("");
-  const [output, setOutput] = useState<string | React.ReactNode>("");
-  const [isRunning, setIsRunning] = useState(false);
-  const [showHint, setShowHint] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const [code, setCode] = useState(""); // Editor Code
+  const [error, setError] = useState<string | null>(null); // Fehlerstatus
+  const [isRunning, setIsRunning] = useState(false); // Code-Ausführung
+  const [isLoading, setIsLoading] = useState(true); // Daten laden
+  const [user, setUser] = useState(null); // Authentifizierter Nutzer
   const router = useRouter();
 
+  // Überwache den Authentifizierungsstatus des Nutzers
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -36,10 +34,10 @@ export default function ChallengePage({ params }: { params: { id: string } }) {
         router.push("/login");
       }
     });
-
     return () => unsubscribe();
   }, [router]);
 
+  // Lade Challenge-Daten
   useEffect(() => {
     const fetchChallenge = async () => {
       try {
@@ -56,14 +54,15 @@ export default function ChallengePage({ params }: { params: { id: string } }) {
         setIsLoading(false);
       }
     };
+
     if (user) {
       fetchChallenge();
     }
   }, [params.id, user]);
 
+  // Code ausführen
   const runCode = async () => {
     setIsRunning(true);
-    setOutput("");
     setError(null);
 
     if (!challenge) {
@@ -97,22 +96,19 @@ export default function ChallengePage({ params }: { params: { id: string } }) {
       }
 
       const result = await response.json();
-      const allPassed = result.status.id === 3; // Adjust based on Judge0 API response
-
-      if (allPassed) {
-        setProgress(100);
+      if (result.status.id === 3) {
+        // Wenn alle Testfälle bestanden wurden
         await updateUserProgress(user?.uid, challenge.id, 100);
         await updateLeaderboard(user?.uid, user?.email || "Anonymous", challenge.id);
       }
-
-      setOutput(result.stdout || "No output");
     } catch {
       setError("An error occurred while running your code.");
+    } finally {
+      setIsRunning(false);
     }
-
-    setIsRunning(false);
   };
 
+  // Ladeanzeige
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -121,6 +117,7 @@ export default function ChallengePage({ params }: { params: { id: string } }) {
     );
   }
 
+  // Fehleranzeige
   if (error) {
     return (
       <Alert variant="destructive" className="m-4">
@@ -148,7 +145,7 @@ export default function ChallengePage({ params }: { params: { id: string } }) {
         onChange={(value) => setCode(value || "")}
         theme="vs-dark"
       />
-      <Button onClick={runCode} disabled={isRunning}>
+      <Button onClick={runCode} disabled={isRunning} className="mt-4">
         {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Run Code"}
       </Button>
     </div>
