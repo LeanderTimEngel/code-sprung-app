@@ -1,17 +1,29 @@
-"use client"
-
-import { useEffect, useState } from "react"
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getLeaderboard, LeaderboardEntry } from "@/lib/leaderboard"
+import { db } from '@/lib/firebase'
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore'
+
+interface LeaderboardEntry {
+  id: string
+  username: string
+  score: number
+}
 
 export function Leaderboard() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const fetchLeaderboard = async () => {
+    async function fetchLeaderboard() {
+      setIsLoading(true)
       try {
-        const data = await getLeaderboard()
+        const leaderboardRef = collection(db, 'leaderboard')
+        const q = query(leaderboardRef, orderBy('score', 'desc'), limit(10))
+        const querySnapshot = await getDocs(q)
+        const data = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as LeaderboardEntry))
         setLeaderboard(data)
       } catch (error) {
         console.error("Error fetching leaderboard:", error)
@@ -35,9 +47,9 @@ export function Leaderboard() {
       <CardContent>
         <ul>
           {leaderboard.map((entry, index) => (
-            <li key={entry.userId} className="flex justify-between items-center py-2 border-b last:border-b-0">
+            <li key={entry.id} className="flex justify-between items-center py-2">
               <span>{index + 1}. {entry.username}</span>
-              <span>{entry.score} points</span>
+              <span>{entry.score}</span>
             </li>
           ))}
         </ul>

@@ -5,19 +5,30 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { BookOpen, Code2, LogOut, Star, Video } from 'lucide-react'
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { auth } from "@/lib/firebase"
 import { onAuthStateChanged, signOut } from "firebase/auth"
-import { Challenge, getAllChallenges } from "@/lib/challenges"
+import { Challenge, getAllChallenges, getChallengesByCategory, getChallengesByDifficulty } from "@/lib/challenges"
 import { getUserProgress } from "@/lib/userProgress"
 import { Leaderboard } from "@/components/Leaderboard"
+import { Achievement, getAchievements } from "@/lib/achievements"
 
 export default function Dashboard() {
   const [user, setUser] = useState(null)
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [userProgress, setUserProgress] = useState<Record<string, number>>({})
+  const [achievements, setAchievements] = useState<Achievement[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string>('All')
+  const [selectedDifficulty, setSelectedDifficulty] = useState<'All' | 'Easy' | 'Medium' | 'Hard'>('All')
   const router = useRouter()
 
   useEffect(() => {
@@ -28,6 +39,8 @@ export default function Dashboard() {
         setChallenges(fetchedChallenges)
         const progress = await getUserProgress(currentUser.uid)
         setUserProgress(progress)
+        const userAchievements = await getAchievements(currentUser.uid)
+        setAchievements(userAchievements)
       } else {
         router.push("/login")
       }
@@ -45,6 +58,28 @@ export default function Dashboard() {
     }
   }
 
+  const handleCategoryChange = async (category: string) => {
+    setSelectedCategory(category)
+    if (category === 'All') {
+      const allChallenges = await getAllChallenges()
+      setChallenges(allChallenges)
+    } else {
+      const filteredChallenges = await getChallengesByCategory(category)
+      setChallenges(filteredChallenges)
+    }
+  }
+
+  const handleDifficultyChange = async (difficulty: 'All' | 'Easy' | 'Medium' | 'Hard') => {
+    setSelectedDifficulty(difficulty)
+    if (difficulty === 'All') {
+      const allChallenges = await getAllChallenges()
+      setChallenges(allChallenges)
+    } else {
+      const filteredChallenges = await getChallengesByDifficulty(difficulty)
+      setChallenges(filteredChallenges)
+    }
+  }
+
   if (!user) {
     return <div>Loading...</div>
   }
@@ -54,10 +89,9 @@ export default function Dashboard() {
       <header className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Welcome, {user.email}</h1>
-          <p className="text-muted-foreground">Master Java programming with hands-on practice</p>
+          <p className="text-muted-foreground">Master programming with hands-on practice</p>
         </div>
         <div className="flex items-center gap-4">
-          <Button>Start New Challenge</Button>
           <Button variant="outline" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
             Logout
@@ -74,6 +108,32 @@ export default function Dashboard() {
               <TabsTrigger value="completed">Completed</TabsTrigger>
             </TabsList>
             <TabsContent value="all" className="mt-6">
+              <div className="flex justify-between mb-4">
+                <Select onValueChange={handleCategoryChange}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All Categories</SelectItem>
+                    <SelectItem value="Arrays">Arrays</SelectItem>
+                    <SelectItem value="Strings">Strings</SelectItem>
+                    <SelectItem value="LinkedLists">Linked Lists</SelectItem>
+                    <SelectItem value="Trees">Trees</SelectItem>
+                    <SelectItem value="Graphs">Graphs</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select onValueChange={handleDifficultyChange}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select difficulty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All Difficulties</SelectItem>
+                    <SelectItem value="Easy">Easy</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="Hard">Hard</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid gap-6 md:grid-cols-2">
                 {challenges.map((challenge) => (
                   <Link key={challenge.id} href={`/challenge/${challenge.id}`}>
@@ -82,7 +142,7 @@ export default function Dashboard() {
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-xl">{challenge.title}</CardTitle>
                           <div className="flex">
-                            {Array(challenge.difficulty)
+                            {Array(challenge.difficulty === 'Easy' ? 1 : challenge.difficulty === 'Medium' ? 2 : 3)
                               .fill(null)
                               .map((_, i) => (
                                 <Star key={i} className="h-4 w-4 fill-primary text-primary" />
@@ -117,7 +177,25 @@ export default function Dashboard() {
             </TabsContent>
           </Tabs>
         </div>
-        <Leaderboard />
+        <div className="space-y-6">
+          <Leaderboard />
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Achievements</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4">
+                {achievements.map((achievement) => (
+                  <div key={achievement.id} className="flex flex-col items-center text-center">
+                    <div className="text-4xl mb-2">{achievement.icon}</div>
+                    <div className="font-semibold">{achievement.name}</div>
+                    <div className="text-sm text-muted-foreground">{achievement.description}</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
